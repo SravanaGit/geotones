@@ -13,7 +13,7 @@ export type Pin = {
   lng: number;
   radius_m: number;
   // An area pin is the rough region of a hidden pin; it has no exact point.
-  kind: 'live' | 'claimed' | 'draft' | 'area' | 'private' | 'soldout';
+  kind: 'live' | 'claimed' | 'draft' | 'area' | 'private' | 'soldout' | 'station' | 'onair';
 };
 
 type Props = {
@@ -28,9 +28,12 @@ const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 const COLOR: ExpressionSpecification = [
   'match', ['get', 'kind'],
   'claimed', '#0f766e', 'draft', '#7c3aed', 'area', '#ca8a04', 'private', '#be185d', 'soldout', '#78716c',
+  'station', '#0369a1', 'onair', '#0891b2',
   '#d9480f',
 ];
 const IS_AREA: ExpressionSpecification = ['==', ['get', 'kind'], 'area'];
+// Station zones are big, so they are drawn faintly under the drops.
+const IS_STATION: ExpressionSpecification = ['in', ['get', 'kind'], ['literal', ['station', 'onair']]];
 
 function pinData(pins: Pin[]): GeoJSON.FeatureCollection {
   return {
@@ -74,7 +77,7 @@ export default function GeoMap({ pins, me, focus, onPinClick, onMapClick }: Prop
       m.addSource('pins', { type: 'geojson', data: pinData([]) });
       m.addSource('me', { type: 'geojson', data: meData(null) });
       m.addLayer({ id: 'zone', type: 'fill', source: 'pins', filter: ['==', '$type', 'Polygon'],
-        paint: { 'fill-color': COLOR, 'fill-opacity': ['case', IS_AREA, 0.1, 0.18] } });
+        paint: { 'fill-color': COLOR, 'fill-opacity': ['case', IS_AREA, 0.1, IS_STATION, 0.07, 0.18] } });
       m.addLayer({ id: 'zone-edge', type: 'line', source: 'pins',
         filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['!', IS_AREA]],
         paint: { 'line-color': COLOR, 'line-width': 1.5 } });

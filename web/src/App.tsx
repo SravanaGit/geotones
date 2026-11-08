@@ -5,6 +5,7 @@ import Listen from './Listen';
 import Library from './Library';
 import Following from './Following';
 import Artist from './Artist';
+import Stations from './Stations';
 import Admin from './Admin';
 import Account from './Account';
 import Auth from './Auth';
@@ -17,6 +18,7 @@ export default function App() {
   const [signingIn, setSigningIn] = useState(false);
   const [admin, setAdmin] = useState(false);
   const [focusDropId, setFocusDropId] = useState<string | null>(null);
+  const [studio, setStudio] = useState<'song' | 'radio'>('song');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -63,7 +65,17 @@ export default function App() {
               focusDropId={focusDropId} onFocused={onFocused} />}
             {tab === 'library' && session && <Library userId={session.user.id} />}
             {tab === 'following' && session && <Following onShowOnMap={(id) => { setFocusDropId(id); go('map'); }} />}
-            {tab === 'artist' && session && <Artist userId={session.user.id} />}
+            {tab === 'artist' && session && (
+              <>
+                <div className="switch" role="tablist" aria-label="What to make">
+                  <button role="tab" aria-selected={studio === 'song'} className={studio === 'song' ? 'on' : ''}
+                    onClick={() => setStudio('song')}>Song drop</button>
+                  <button role="tab" aria-selected={studio === 'radio'} className={studio === 'radio' ? 'on' : ''}
+                    onClick={() => setStudio('radio')}>Radio station</button>
+                </div>
+                {studio === 'song' ? <Artist userId={session.user.id} /> : <Stations userId={session.user.id} />}
+              </>
+            )}
             {tab === 'admin' && session && admin && <Admin />}
             {tab === 'account' && session && <Account session={session} />}
           </>

@@ -31,7 +31,7 @@ export default function Account({ session }: { session: Session }) {
   async function deleteAccount(e: FormEvent) {
     e.preventDefault();
     setDeleting(true);
-    setDeleteMessage('Closing your drops…');
+    setDeleteMessage('Closing your drops and stations…');
     const retired = await supabase.rpc('retire_my_drops');
     if (retired.error) {
       setDeleting(false);
@@ -39,7 +39,7 @@ export default function Account({ session }: { session: Session }) {
     }
     // Remove files no drop uses any more. Storage refuses files listeners still own.
     setDeleteMessage('Removing unused files…');
-    for (const bucket of ['audio', 'covers', 'previews'] as Bucket[]) {
+    for (const bucket of ['audio', 'covers', 'previews', 'station-audio'] as Bucket[]) {
       const { data } = await supabase.storage.from(bucket).list(userId, { limit: 1000 });
       const paths = (data ?? []).map((f) => `${userId}/${f.name}`);
       if (paths.length) await supabase.storage.from(bucket).remove(paths);

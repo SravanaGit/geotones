@@ -14,8 +14,11 @@ type Report = {
   report_count: number;
 };
 
+type AdminStation = { id: string; title: string; owner_name: string; on_air: boolean; hidden: boolean; created_at: string };
+
 export default function Admin() {
   const [reports, setReports] = useState<Report[] | null>(null);
+  const [stations, setStations] = useState<AdminStation[]>([]);
   const [playing, setPlaying] = useState<{ id: string; url: string } | null>(null);
   const [error, setError] = useState('');
 
@@ -23,6 +26,8 @@ export default function Admin() {
     const { data, error } = await supabase.rpc('admin_reports');
     if (error) setError(error.message);
     setReports((data ?? []) as Report[]);
+    const radio = await supabase.rpc('admin_stations');
+    setStations((radio.data ?? []) as AdminStation[]);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -67,6 +72,23 @@ export default function Admin() {
                 <button onClick={() => act(supabase.rpc('admin_resolve_report', { p_report_id: r.report_id }))}>Mark resolved</button>
               )}
             </div>
+          </li>
+        ))}
+      </ul>
+
+      <h2>Radio stations</h2>
+      <p className="muted">Live broadcasts can’t be checked in advance. Taking a station down cuts off everyone listening.</p>
+      {stations.length === 0 && <p className="muted">No stations.</p>}
+      <ul className="list">
+        {stations.map((s) => (
+          <li key={s.id}>
+            <div className="grow">
+              <strong>{s.title}</strong>
+              <p className="muted">{s.owner_name} · {s.hidden ? 'Taken down' : s.on_air ? '● On air' : 'Off air'}</p>
+            </div>
+            <button onClick={() => act(supabase.rpc('admin_set_station_hidden', { p_station_id: s.id, p_hidden: !s.hidden }))}>
+              {s.hidden ? 'Restore' : 'Take down'}
+            </button>
           </li>
         ))}
       </ul>

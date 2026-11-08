@@ -8,6 +8,8 @@ import GeoMap from './GeoMap';
 import type { Pin } from './GeoMap';
 import ArtistFollow from './ArtistFollow';
 import { usePosition } from './usePosition';
+import StationPlayer from './StationPlayer';
+import type { MapStation } from './radio';
 
 export type MapDrop = {
   id: string;
@@ -67,6 +69,8 @@ export default function Listen({ session, onNeedSignIn, focusDropId, onFocused }
   onFocused: () => void;
 }) {
   const [drops, setDrops] = useState<MapDrop[]>([]);
+  const [stations, setStations] = useState<MapStation[]>([]);
+  const [stationId, setStationId] = useState<string | null>(null);
   const [codes, setCodes] = useState<string[]>(loadCodes);
   const [revealed, setRevealed] = useState<Record<string, { lat: number; lng: number }>>({});
   const [covers, setCovers] = useState<Record<string, string>>({});
@@ -92,11 +96,25 @@ export default function Listen({ session, onNeedSignIn, focusDropId, onFocused }
     setLoadError('');
     const rows = (data ?? []) as MapDrop[];
     setDrops(rows);
-    coverLinks(rows.map((d) => d.cover_path)).then(setCovers);
+    coverLinks(rows.map((d) => d.cover_path)).then((links) => setCovers((c) => ({ ...c, ...links })));
     return rows;
   }, []);
 
   useEffect(() => { load(codes); }, [load, codes, session]);
+
+  // Stations, refreshed every minute so "on air" stays current.
+  useEffect(() => {
+    let stopped = false;
+    const refresh = () => supabase.rpc('map_stations').then(({ data }) => {
+      if (stopped || !data) return;
+      const rows = data as MapStation[];
+      setStations(rows);
+      coverLinks(rows.map((r) => r.cover_path)).then((links) => setCovers((c) => ({ ...c, ...links })));
+    });
+    refresh();
+    const timer = setInterval(refresh, 60000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [session]);
 
   // Ask for the exact spot of hidden pins as the listener moves.
   useEffect(() => {
@@ -121,13 +139,18 @@ export default function Listen({ session, onNeedSignIn, focusDropId, onFocused }
     return spot ? { ...d, ...spot, exact: true } : d;
   }), [drops, revealed]);
 
-  const pins = useMemo<Pin[]>(() => located.map((d) => ({
-    id: d.id,
-    lat: d.lat,
-    lng: d.lng,
-    radius_m: d.exact ? d.radius_m : d.area_m ?? d.radius_m,
-    kind: d.claimed ? 'claimed' : !d.exact ? 'area' : soldOut(d) ? 'soldout' : d.is_private ? 'private' : 'live',
-  })), [located]);
+  const pins = useMemo<Pin[]>(() => [
+    ...stations.map((st): Pin => ({
+      id: `station:${st.id}`, lat: st.lat, lng: st.lng, radius_m: st.radius_m, kind: st.on_air ? 'onair' : 'station',
+    })),
+    ...located.map((d): Pin => ({
+      id: d.id,
+      lat: d.lat,
+      lng: d.lng,
+      radius_m: d.exact ? d.radius_m : d.area_m ?? d.radius_m,
+      kind: d.claimed ? 'claimed' : !d.exact ? 'area' : soldOut(d) ? 'soldout' : d.is_private ? 'private' : 'live',
+    })),
+  ], [located, stations]);
 
   // The nearest drop the listener could still claim.
   const nearest = useMemo(() => {
@@ -162,6 +185,12 @@ export default function Listen({ session, onNeedSignIn, focusDropId, onFocused }
   const distance = selected && position ? distanceM(position.lat, position.lng, selected.lat, selected.lng) : null;
 
   function select(id: string) {
+    if (id.startsWith('station:')) {
+      setSelectedId(null);
+      setStationId(id.slice('station:'.length));
+      return;
+    }
+    setStationId(null);
     setSelectedId(id);
     setMessage('');
     setPreview(null);
@@ -228,6 +257,7 @@ export default function Listen({ session, onNeedSignIn, focusDropId, onFocused }
   }
 
   const status = loadError || locationError;
+  const station = stations.find((st) => st.id === stationId);
 
   return (
     <div className="map-page">
@@ -241,7 +271,13 @@ export default function Listen({ session, onNeedSignIn, focusDropId, onFocused }
         </button>
       )}
 
-      {!selected && (
+      {station && (
+        <StationPlayer key={station.id} station={station} position={position}
+          cover={station.cover_path ? covers[station.cover_path] : undefined}
+          session={session} onNeedSignIn={onNeedSignIn} onClose={() => setStationId(null)} />
+      )}
+
+      {!selected && !station && (
         <div className="map-tools">
           {codeOpen ? (
             <form className="code-form" onSubmit={addCode}>

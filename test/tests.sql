@@ -753,3 +753,145 @@ $$;
 
 select t.eq('the covers bucket is private', public::text, 'false') from storage.buckets where id = 'covers';
 select t.eq('the previews bucket is private', public::text, 'false') from storage.buckets where id = 'previews';
+
+-- Radio stations ------------------------------------------------------------
+insert into auth.users (id, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-00000000000f', '{"display_name": "Radio Leaver"}');
+
+do $$
+declare
+  a constant uuid := '00000000-0000-0000-0000-00000000000a';
+  b constant uuid := '00000000-0000-0000-0000-00000000000b';
+  c constant uuid := '00000000-0000-0000-0000-00000000000c';
+  d constant uuid := '00000000-0000-0000-0000-00000000000d';
+  s uuid;
+  r jsonb;
+  track1 constant text := '00000000-0000-0000-0000-00000000000a/radio1.mp3';
+  track2 constant text := '00000000-0000-0000-0000-00000000000a/radio2.mp3';
+begin
+  perform t.login(a);
+  insert into public.stations (title, lat, lng, radius_m, rights_confirmed)
+  values ('Joburg Radio', -26.2041, 28.0473, 500, true) returning id into s;
+  insert into storage.objects (bucket_id, name) values ('station-audio', track1), ('station-audio', track2);
+  insert into public.station_tracks (station_id, position, title, audio_path, duration_s) values
+    (s, 0, 'One', track1, 180), (s, 1, 'Two', track2, 200);
+  perform t.eq('artists see their own playlist', (select jsonb_array_length(public.my_stations() -> 0 -> 'tracks'))::text, '2');
+  perform t.eq('owners tune in from anywhere',
+    public.tune_in(s, 0, 0, 5000) ->> 'status', 'tuned');
+  perform t.rejected('stations need the rights box ticked',
+    format('insert into public.stations (title, lat, lng, rights_confirmed) values (%L, 0, 0, false)', 'No'));
+
+  perform t.anon();
+  perform t.eq('signed-out visitors see stations on the map',
+    (select count(*)::text from public.map_stations() where id = s), '1');
+  perform t.eq('the map does not say signed-out visitors own it',
+    (select mine::text from public.map_stations() where id = s), 'false');
+  perform t.denied_fn('signed-out visitors cannot tune in', format('select public.tune_in(%L, -26.2041, 28.0473, 5)', s));
+  perform t.denied('signed-out visitors cannot read playlists', 'select 1 from public.station_tracks');
+
+  perform t.login(b);
+  perform t.eq('listeners cannot read playlists directly',
+    (select count(*)::text from public.station_tracks), '0');
+  perform t.eq('station audio is private before tuning in',
+    (select count(*)::text from storage.objects where name = track1), '0');
+  r := public.tune_in(s, -26.21, 28.0473, 5);
+  perform t.eq('too far from the station', r ->> 'status', 'too_far');
+  perform t.eq('and how far', r ->> 'distance_m', '656');
+  perform t.eq('rough locations are refused', public.tune_in(s, -26.2014, 28.0473, 200) ->> 'status', 'low_accuracy');
+  perform t.eq('faked locations are refused', public.tune_in(s, -26.2014, 28.0473, 5, true) ->> 'status', 'simulated_location');
+  perform t.eq('broken locations are refused', public.tune_in(s, 'NaN', 28.0473, 5) ->> 'status', 'invalid_location');
+  perform t.eq('no pass after a refused tune-in',
+    (select count(*)::text from storage.objects where name = track1), '0');
+  r := public.tune_in(s, -26.2014, 28.0473, 120);
+  perform t.eq('inside the zone tunes in', r ->> 'status', 'tuned');
+  perform t.eq('with the playlist in order', r -> 'tracks' -> 1 ->> 'title', 'Two');
+  perform t.eq('and the clock', (r ? 'now' and r ? 'started_at')::text, 'true');
+  perform t.eq('off air until the artist goes live', r ->> 'on_air', 'false');
+  perform t.eq('tuned-in listeners can play the station audio',
+    (select count(*)::text from storage.objects where bucket_id = 'station-audio'), '2');
+  perform t.denied_fn('nobody gets a live ticket while off air', format('select public.live_pass(%L)', s));
+  perform t.denied_fn('listeners cannot put a station on air', format('select public.station_heartbeat(%L, true)', s));
+  perform t.denied('listeners cannot add tracks to someone else''s station',
+    format('insert into public.station_tracks (station_id, title, audio_path, duration_s) values (%L, %L, %L, 10)',
+      s, 'Mine', b || '/x.mp3'));
+  update public.stations set title = 'Hijacked' where id = s;
+  delete from public.stations where id = s;
+  perform t.denied('listeners cannot read the live flag', 'select live_seen_at from public.stations');
+
+  perform t.login(d);
+  perform t.eq('other listeners still have no pass',
+    (select count(*)::text from storage.objects where bucket_id = 'station-audio'), '0');
+
+  perform t.login(a);
+  perform t.eq('listeners cannot rename or delete stations',
+    (select title from public.stations where id = s), 'Joburg Radio');
+  perform public.station_heartbeat(s, true);
+  perform t.eq('the owner gets a host ticket', public.live_pass(s) ->> 'role', 'host');
+  perform t.eq('the map shows it on air', (select on_air::text from public.map_stations() where id = s), 'true');
+  delete from storage.objects where name = track2;
+  perform t.eq('station audio in a playlist stays',
+    (select count(*)::text from storage.objects where name = track2), '1');
+
+  perform t.login(b);
+  perform t.eq('tuned-in listeners get a listener ticket while on air', public.live_pass(s) ->> 'role', 'listener');
+  perform t.login(d);
+  perform t.denied_fn('listeners without a pass get no live ticket', format('select public.live_pass(%L)', s));
+
+  perform t.logout();
+  update public.station_passes set expires_at = now() - interval '1 second' where user_id = b;
+  perform t.login(b);
+  perform t.eq('an expired pass stops the music',
+    (select count(*)::text from storage.objects where bucket_id = 'station-audio'), '0');
+  perform t.denied_fn('and the live ticket', format('select public.live_pass(%L)', s));
+  perform public.tune_in(s, -26.2014, 28.0473, 5);
+
+  perform t.logout();
+  update public.stations set live_seen_at = now() - interval '2 minutes' where id = s;
+  perform t.login(b);
+  perform t.eq('a broadcaster gone quiet for 90 seconds is off air',
+    (select on_air::text from public.map_stations() where id = s), 'false');
+
+  perform t.login(a);
+  delete from public.station_tracks where audio_path = track2;
+  delete from storage.objects where name = track2;
+  perform t.eq('station audio out of the playlist can be deleted',
+    (select count(*)::text from storage.objects where name = track2), '0');
+  perform public.station_heartbeat(s, true);
+
+  perform t.login(b);
+  perform t.denied_fn('listeners cannot take stations down', format('select public.admin_set_station_hidden(%L, true)', s));
+  perform t.login(c);
+  perform t.eq('moderators see stations', (select count(*)::text from public.admin_stations() where id = s), '1');
+  perform public.admin_set_station_hidden(s, true);
+  perform t.login(b);
+  perform t.eq('a taken-down station is off the map', (select count(*)::text from public.map_stations() where id = s), '0');
+  perform t.eq('and cannot be tuned', public.tune_in(s, -26.2014, 28.0473, 5) ->> 'status', 'not_available');
+  perform t.eq('and its audio stops', (select count(*)::text from storage.objects where bucket_id = 'station-audio'), '0');
+  perform t.login(a);
+  perform t.denied_fn('and its owner cannot go live', format('select public.station_heartbeat(%L, true)', s));
+  perform t.login(c);
+  perform public.admin_set_station_hidden(s, false);
+  perform t.logout();
+end;
+$$;
+
+do $$
+declare
+  f constant uuid := '00000000-0000-0000-0000-00000000000f';
+  s uuid;
+begin
+  perform t.login(f);
+  insert into public.stations (title, lat, lng, rights_confirmed) values ('Leaving FM', 0, 0, true) returning id into s;
+  insert into storage.objects (bucket_id, name) values ('station-audio', f || '/leave.mp3');
+  insert into public.station_tracks (station_id, title, audio_path, duration_s) values (s, 'Bye', f || '/leave.mp3', 60);
+  perform public.retire_my_drops();
+  perform t.eq('closing an account removes its stations',
+    (select count(*)::text from public.stations where owner_id = f), '0');
+  delete from storage.objects where name = f || '/leave.mp3';
+  perform t.eq('so their audio can be cleaned up',
+    (select count(*)::text from storage.objects where name = f || '/leave.mp3'), '0');
+  perform t.logout();
+end;
+$$;
+
+select t.eq('the station audio bucket is private', public::text, 'false') from storage.buckets where id = 'station-audio';

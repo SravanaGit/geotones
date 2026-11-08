@@ -5,7 +5,7 @@ export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
 );
 
-export type Bucket = 'audio' | 'covers' | 'previews';
+export type Bucket = 'audio' | 'covers' | 'previews' | 'station-audio';
 
 // Short-lived link to a stored file. Storage refuses it unless the policies allow the viewer.
 export async function fileLink(bucket: Bucket, path: string): Promise<string> {

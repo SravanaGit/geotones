@@ -158,3 +158,19 @@ fieldset > * + * { margin-top: 10px; }
   .map-tools, .sheet { bottom: 12px; }
   .stats strong { font-size: 1.15rem; }
 }
+
+/* Radio */
+.switch { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--card); }
+.switch button { flex: 1; max-width: 200px; border-color: transparent; background: none; color: var(--muted); }
+.switch button.on { color: var(--ink); background: var(--paper); border-color: var(--line); font-weight: 600; }
+.cover-radio { background: #0369a1; }
+.tag.on-air { background: #dc2626; border-color: #dc2626; color: #fff; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #dc2626; margin-right: 7px;
+  animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+.meter { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.meter span { display: block; height: 100%; background: #16a34a; transition: width 60ms linear; }
+.playlist { padding-left: 1.4em; margin: 4px 0 0; }
+.playlist li { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 4px 0; border: none; }
+.playlist audio { max-width: 220px; height: 34px; }
