@@ -48,7 +48,7 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <strong className="brand">Geotones</strong>
+        <strong className="brand">Songcacher</strong>
         <nav aria-label="Sections">
           {tabs.map(([id, label]) => (
             <button key={id} className={tab === id ? 'tab on' : 'tab'} aria-current={tab === id ? 'page' : undefined}

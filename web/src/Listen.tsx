@@ -168,7 +168,7 @@ export default function Listen({ session, onNeedSignIn, focusDropId, onFocused }
     if (!nearest || nearest.distance > nearest.drop.radius_m) return;
     if (alerted.current.has(nearest.drop.id)) return;
     alerted.current.add(nearest.drop.id);
-    notify('You found a Geotones drop', `“${nearest.drop.title}” is right here. Open the app to claim it.`);
+    notify('You found a Songcacher drop', `“${nearest.drop.title}” is right here. Open the app to claim it.`);
   }, [nearest]);
 
   useEffect(() => {

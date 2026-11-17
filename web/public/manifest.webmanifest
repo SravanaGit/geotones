@@ -1,6 +1,6 @@
 {
-  "name": "Geotones",
-  "short_name": "Geotones",
+  "name": "Songcacher",
+  "short_name": "Songcacher",
   "description": "Songs dropped on the map. Go there to get them.",
   "start_url": "./",
   "scope": "./",

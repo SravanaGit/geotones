@@ -62,7 +62,7 @@ export default function StationPlayer({ station, position, cover, session, onNee
     setNowPlaying(title);
     if ('mediaSession' in navigator && 'MediaMetadata' in window) {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title, artist: `${station.title} · ${station.owner_name}`, album: 'Geotones radio',
+        title, artist: `${station.title} · ${station.owner_name}`, album: 'Songcacher radio',
         ...(cover && { artwork: [{ src: cover }] }),
       });
     }

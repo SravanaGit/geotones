@@ -1,8 +1,8 @@
-# Geotones
+# Songcacher
 
 Artists drop songs on a map. Listeners go to the spot to claim them, and keep them in the app.
 
-Working name. Web app now; an iPhone app comes later.
+Formerly "Geotones" (working name). Web app now; an iPhone app comes later.
 
 ## What's here
 

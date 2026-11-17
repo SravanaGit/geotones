@@ -127,7 +127,7 @@ export default function Library({ userId }: { userId: string }) {
         maxClaims: song.max_claims,
         coverUrl: song.cover_path ? covers[song.cover_path] ?? null : null,
       });
-      await shareImage(blob, `I found ${song.title} on Geotones`);
+      await shareImage(blob, `I found ${song.title} on Songcacher`);
     } catch (e) {
       setMessage(`Couldn’t share: ${(e as Error).message}`);
     }

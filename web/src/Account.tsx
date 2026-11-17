@@ -68,13 +68,13 @@ export default function Account({ session }: { session: Session }) {
 
       <h2>Alerts</h2>
       <p className="muted">
-        While Geotones is open, it tells you when a drop is near. On iPhone, alerts outside the app need it added to
+        While Songcacher is open, it tells you when a drop is near. On iPhone, alerts outside the app need it added to
         your Home Screen first: tap Share, then Add to Home Screen.
       </p>
       {permission === 'granted' && <p className="note">Notifications are on.</p>}
       {permission === 'default' && <button onClick={enableNotifications}>Turn on notifications</button>}
       {permission === 'denied' && <p className="note">Notifications are blocked in this browser’s settings.</p>}
-      {permission === 'unsupported' && <p className="note">This browser can’t show notifications. Add Geotones to your Home Screen first.</p>}
+      {permission === 'unsupported' && <p className="note">This browser can’t show notifications. Add Songcacher to your Home Screen first.</p>}
 
       <h2>Sign out</h2>
       <button onClick={() => supabase.auth.signOut()}>Sign out</button>

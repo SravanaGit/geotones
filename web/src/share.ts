@@ -66,7 +66,7 @@ export async function shareCard(card: Card): Promise<Blob> {
   ctx.fillText(fitText(ctx, edition, 840), 120, 1242);
   ctx.fillStyle = '#8a8178';
   ctx.font = '600 34px system-ui, sans-serif';
-  ctx.fillText('GEOTONES', 120, 1300);
+  ctx.fillText('SONGCACHER', 120, 1300);
 
   return new Promise((resolve, reject) => canvas.toBlob(
     (blob) => (blob ? resolve(blob) : reject(new Error('Couldn’t make the image.'))), 'image/png',
@@ -75,7 +75,7 @@ export async function shareCard(card: Card): Promise<Blob> {
 
 // Opens the phone's share sheet, or downloads the image where sharing files isn't supported.
 export async function shareImage(blob: Blob, title: string) {
-  const file = new File([blob], 'geotones.png', { type: 'image/png' });
+  const file = new File([blob], 'songcacher.png', { type: 'image/png' });
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title });
@@ -86,7 +86,7 @@ export async function shareImage(blob: Blob, title: string) {
   }
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = 'geotones.png';
+  link.download = 'songcacher.png';
   link.click();
   setTimeout(() => URL.revokeObjectURL(link.href), 10000);
 }
